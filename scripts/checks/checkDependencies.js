@@ -1,11 +1,23 @@
 const { execSync } = require("child_process");
+const fs = require("fs");
 
 exports.run = async () => {
   const findings = [];
+  if (!fs.existsSync("package-lock.json")) {
+    findings.push({
+      type: "Dependencies",
+      message: "No lockfile found",
+      file: "package-lock.json",
+      details: "OSV and audit scans require package-lock.json or yarn.lock.",
+      severity: 1,
+      doc: "https://docs.npmjs.com/cli/v8/configuring-npm/package-lock-json",
+    });
+    return findings;
+  }
 
   try {
     const result = execSync("npm audit --json", {
-      stdio: ["pipe", "pipe", "ignore"], // évite de crasher si warning
+      stdio: ["pipe", "pipe", "ignore"],
     }).toString();
 
     const parsed = JSON.parse(result);
@@ -29,7 +41,7 @@ exports.run = async () => {
     findings.push({
       type: "Dependencies",
       message: "npm audit failed",
-      file: "package.json",
+      file: "package-lock.json",
       details: err.message,
       severity: 1,
       doc: "https://docs.npmjs.com/cli/v8/commands/npm-audit",

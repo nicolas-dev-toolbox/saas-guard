@@ -1,46 +1,43 @@
-const fs = require('fs');
-const glob = require('glob');
+const fs = require("fs");
+const glob = require("glob");
+
+const monetizationKeywords = [
+  /plan/i,
+  /subscription/i,
+  /billing/i,
+  /paid/i,
+  /premium/i,
+  /pro/i,
+  /upgrade/i,
+  /invoice/i,
+  /accessLevel/i,
+  /paywall/i,
+];
 
 exports.run = async () => {
   const findings = [];
-  const files = glob.sync('**/*.{ts,tsx,js}', { ignore: 'node_modules/**' });
+  const files = glob.sync("**/*.{js,ts,tsx,vue}", {
+    ignore: ["node_modules/**", "scripts/**"],
+  });
 
-  files.forEach(file => {
-    const content = fs.readFileSync(file, 'utf8');
+  files.forEach((file) => {
+    const content = fs.readFileSync(file, "utf8");
+    const containsMonetization = monetizationKeywords.some((p) =>
+      p.test(content)
+    );
+    const noBackendProtection =
+      !/getServerSession|verifyToken|auth|checkSession|backend/i.test(content);
 
-    // Webhook signature
-    if (file.includes('webhook') && !content.includes('verifySignature')) {
+    if (containsMonetization && noBackendProtection) {
       findings.push({
-        type: 'Paywall',
-        message: 'Stripe webhook signature not verified',
+        type: "Monetization",
+        message:
+          "Monetization or plan logic found without backend verification",
         file,
-        details: 'You should validate the Stripe signature in the webhook handler.',
-        severity: 3,
-        doc: 'https://stripe.com/docs/webhooks/signatures'
-      });
-    }
-
-    // LemonSqueezy route check
-    if (content.includes('/lemon') && content.includes('GET') && !content.includes('auth')) {
-      findings.push({
-        type: 'Paywall',
-        message: 'LemonSqueezy route without auth protection',
-        file,
-        details: 'Public route handling LemonSqueezy data should be protected.',
+        details:
+          "Found plan/subscription logic but no server-side auth or validation.",
         severity: 2,
-        doc: 'https://docs.lemonsqueezy.com/help/webhooks'
-      });
-    }
-
-    // Client-only protection check
-    if (content.includes('router.push') && content.includes('/dashboard') && !content.includes('session')) {
-      findings.push({
-        type: 'Paywall',
-        message: 'Client-side route protection only',
-        file,
-        details: 'Page redirects based on session only in the browser, but backend might be exposed.',
-        severity: 2,
-        doc: 'https://next-auth.js.org/getting-started/example'
+        doc: "https://stripe.com/docs/security/guide#client-side-checkout",
       });
     }
   });

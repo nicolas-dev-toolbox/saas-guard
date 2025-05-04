@@ -2,6 +2,7 @@ const fs = require("fs");
 const path = require("path");
 
 const checks = [
+  "./checks/checkClientSideAuth",
   "./checks/checkSecrets",
   "./checks/checkPrisma",
   "./checks/checkHeaders",
